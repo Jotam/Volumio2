@@ -92,7 +92,7 @@ var searchOnline = function (defer, web) {
 			if (err) {
 				albumart(artist, function (err, url) {
 					if (err) {
-						console.log("ERRORE: " + err);
+						console.log("ERROR getting albumart: " + err + " for Infopath '" + infoPath + "'");
 						defer.reject(new Error(err));
 						return defer.promise;
 					}
@@ -165,7 +165,7 @@ var searchInFolder = function (defer, path, web) {
 	}
 
 	if (fs.existsSync(coverFolder)) {
-		logger.info("Searching in folder " + coverFolder);
+		//logger.info("Searching in folder " + coverFolder);
 		var stats = fs.statSync(coverFolder);
 
 		if (stats.isFile()) {
@@ -197,7 +197,7 @@ var searchInFolder = function (defer, path, web) {
 			//console.log("Searching for cover " + coverFile);
 			if (fs.existsSync(coverFile)) {
                 var cacheFile=mountAlbumartFolder+'/'+coverFolder+'/extralarge.jpeg';
-                logger.info('Copying file to cache ['+cacheFile+']');
+                //logger.info('Copying file to cache ['+cacheFile+']');
                 fs.ensureFileSync(cacheFile);
                 fs.copySync(coverFile,cacheFile);
 				defer.resolve(cacheFile);
@@ -217,7 +217,7 @@ var searchInFolder = function (defer, path, web) {
 
 		}
 	} else {
-		logger.info('Folder ' + coverFolder + ' does not exist');
+		//logger.info('Folder ' + coverFolder + ' does not exist');
 	}
 	searchOnline(defer, web);
 
@@ -241,9 +241,15 @@ var processRequest = function (web, path) {
 
         path=sanitizeUri(path);
 
-        if(path.startsWith('/'))
-            path = '/mnt' + path;
-		else path = '/mnt/' + path;
+        if(path.startsWith('/')){
+        	if (path.startsWith('/tmp/')){
+
+			} else {
+				path = '/mnt' + path;
+			}
+		} else {
+			path = '/mnt/' + path;
+		}
 
         if (fs.existsSync(path)) {
             var stats = fs.statSync(path);
@@ -270,7 +276,7 @@ var processRequest = function (web, path) {
 
             fs.ensureDirSync(coverFolder);
             var cacheFilePath=mountAlbumartFolder+coverFolder+'/'+imageSize+'.jpeg';
-            logger.info(cacheFilePath);
+            //logger.info(cacheFilePath);
 
 
             if(fs.existsSync(cacheFilePath))
@@ -312,7 +318,7 @@ var processRequest = function (web, path) {
 
 
 		} else {
-			logger.info('File' + path + ' doesnt exist');
+			//logger.info('File' + path + ' doesnt exist');
 			searchInFolder(defer, path, web);
 		}
 
@@ -341,7 +347,7 @@ var processExpressRequest = function (req, res) {
 	var path = req.query.path;
     var icon = req.query.icon;
 
-    if(rawQuery!==undefined)
+    if(rawQuery !== undefined && rawQuery !== null)
     {
         var splitted=rawQuery.split('&');
         for(var i in splitted)
@@ -357,13 +363,13 @@ var processExpressRequest = function (req, res) {
     }
 
 
-    var starttime=Date.now();
+    //var starttime=Date.now();
 	var promise = processRequest(web, path);
 	promise.then(function (filePath) {
-			logger.info('Sending file ' + filePath);
+			//logger.info('Sending file ' + filePath);
 
-            var stoptime=Date.now();
-            logger.info('Serving request took '+(stoptime-starttime)+' milliseconds');
+            //var stoptime=Date.now();
+            //logger.info('Serving request took '+(stoptime-starttime)+' milliseconds');
 		    res.setHeader('Cache-Control', 'public, max-age=2628000')
 			res.sendFile(filePath);
 		})

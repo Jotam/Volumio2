@@ -16,6 +16,7 @@ var currentvolume = '';
 var currentmute = false;
 var premutevolume = '';
 var mixertype = '';
+var devicename = '';
 
 module.exports = CoreVolumeController;
 function CoreVolumeController(commandRouter) {
@@ -30,6 +31,13 @@ function CoreVolumeController(commandRouter) {
 	device = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'outputdevice');
 	if (device === 'softvolume') {
 		device = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'softvolumenumber');
+		devicename = 'softvolume';
+	} else {
+		var cards = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getAlsaCards', '');
+		if ((cards[device] != undefined) && (cards[device].name != undefined)) {
+			devicename = cards[device].name;
+		}
+
 	}
 	var mixerdev = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'mixer');
 	mixer = '"'+mixerdev+'"';
@@ -37,6 +45,7 @@ function CoreVolumeController(commandRouter) {
 	volumecurve = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'volumecurvemode');
 	volumesteps = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'volumesteps');
 	mixertype = this.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'getConfigParam', 'mixer_type');
+
 
 	var amixer = function (args, cb) {
 
@@ -111,10 +120,20 @@ function CoreVolumeController(commandRouter) {
 			amixer(['-M', 'set', '-c', device, mixer, val + '%'], function (err) {
 				cb(err);
 			});
+			if (devicename == 'PianoDACPlus'  || devicename == 'Allo Piano 2.1') {
+				amixer(['-M', 'set', '-c', device, 'Subwoofer', val + '%'], function (err) {
+					cb(err);
+				});
+			}
 		} else {
 			amixer(['set', '-c', device, mixer, val + '%'], function (err) {
 				cb(err);
 			});
+			if (devicename == 'PianoDACPlus'  || devicename == 'Allo Piano 2.1') {
+				amixer(['set', '-c', device, 'Subwoofer', val + '%'], function (err) {
+					cb(err);
+				});
+			}
 		}
 	};
 
@@ -140,13 +159,15 @@ CoreVolumeController.prototype.updateVolumeSettings = function (data) {
 	var self = this;
 
 
-	self.logger.info('Updating Volume Controller Parameters: Device: '+ data.device + ' Mixer: '+ data.mixer + ' Max Vol: ' + data.maxvolume + ' Vol Curve; ' + data.volumecurve + ' Vol Steps: ' + data.volumesteps);
+	self.logger.info('Updating Volume Controller Parameters: Device: '+ data.device + ' Name: '+ data.name +' Mixer: '+ data.mixer + ' Max Vol: ' + data.maxvolume + ' Vol Curve; ' + data.volumecurve + ' Vol Steps: ' + data.volumesteps);
 	device = data.device;
 	mixer = '"'+data.mixer+'"';
 	maxvolume = data.maxvolume;
+	console.log('MAXX'+maxvolume)
 	volumecurve = data.volumecurve;
 	volumesteps = data.volumesteps;
 	mixertype = data.mixertype
+	devicename = data.name;
 }
 
 
@@ -189,9 +210,12 @@ CoreVolumeController.prototype.alsavolume = function (VolumeInteger) {
 			self.setMuted(false, function (err) {
 				self.getVolume(function (err, vol) {
 					if (vol == null) {
-						vol =  currentvolume
+						vol =  currentvolume;
 					}
 					VolumeInteger = Number(vol)+Number(volumesteps);
+					if (VolumeInteger > 100){
+						VolumeInteger = 100;
+					}
 					if (VolumeInteger > maxvolume){
 						VolumeInteger = maxvolume;
 					}
@@ -201,6 +225,7 @@ CoreVolumeController.prototype.alsavolume = function (VolumeInteger) {
 					self.setVolume(VolumeInteger, function (err) {
 						Volume.vol = VolumeInteger
 						Volume.mute = false;
+                        currentvolume = VolumeInteger;
 						self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'VolumeController::Volume ' + vol);
 						self.commandRouter.volumioupdatevolume(Volume);
 
@@ -215,6 +240,9 @@ CoreVolumeController.prototype.alsavolume = function (VolumeInteger) {
 					vol =  currentvolume
 				}
 				VolumeInteger = Number(vol)-Number(volumesteps);
+				if (VolumeInteger < 0){
+					VolumeInteger = 0;
+				}
 				if (VolumeInteger > maxvolume){
 					VolumeInteger = maxvolume;
 				}
@@ -225,12 +253,19 @@ CoreVolumeController.prototype.alsavolume = function (VolumeInteger) {
 					self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'VolumeController::Volume ' + vol);
 					Volume.vol = VolumeInteger
 					Volume.mute = false;
+                    currentvolume = VolumeInteger;
 					self.commandRouter.volumioupdatevolume(Volume);
 				});
 			});
 			break;
 		default:
 			// Set the Volume with numeric value 0-100
+			if (VolumeInteger < 0){
+				VolumeInteger = 0;
+			}
+			if (VolumeInteger > 100){
+				VolumeInteger = 100;
+			}
 			if (VolumeInteger > maxvolume){
 				VolumeInteger = maxvolume;
 			}
@@ -246,6 +281,7 @@ CoreVolumeController.prototype.alsavolume = function (VolumeInteger) {
 					self.commandRouter.volumioupdatevolume(Volume);
 			});
 	}
+
 };
 
 CoreVolumeController.prototype.retrievevolume = function () {

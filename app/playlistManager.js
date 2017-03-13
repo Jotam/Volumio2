@@ -90,6 +90,16 @@ PlaylistManager.prototype.listPlaylist = function () {
 	return defer.promise;
 };
 
+PlaylistManager.prototype.retrievePlaylists = function () {
+	var self = this;
+	var content = [];
+
+	content = fs.readdirSync(this.playlistFolder);
+
+	return content;
+}
+
+
 PlaylistManager.prototype.getPlaylistContent = function (name) {
 	var self = this;
 
@@ -418,9 +428,8 @@ PlaylistManager.prototype.commonAddToPlaylist = function (folder, name, service,
                         if (item.type == 'song') {
                             var artUrl = self.commandRouter.executeOnPlugin('music_service', 'mpd', 'getAlbumArt', {
                                 artist: item.artist,
-                                album: item.album,
-                                path: path
-                            });
+                                album: item.album
+                            }, path, '');
                             if (item.uri.indexOf('music-library/') >= 0) {
                                 var itemUri = item.uri.replace('music-library', '');
                             } else var itemUri = item.uri;
